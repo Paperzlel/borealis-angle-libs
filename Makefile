@@ -12,12 +12,15 @@ ifeq ($(PLATFORM), Linux)
 endif
 
 CXX := clang++
-# Requires optimisation\ C++17 and SSE 4.2
-CXXFLAGS := -O3 -std=c++17 -msse4.2
+CC := clang
+# Requires optimisation, C++20 and SSE 4.2
+CXXFLAGS := -O3 -std=c++20 -msse4.2 -Wwrite-strings -fdeclspec -Wno-nontrivial-memcall
+CCFLAGS := -O3 -std=c17 -msse4.2 -Wwrite-strings -fdeclspec -Wno-nontrivial-memcall
 INCLUDES := -Iborealis-angle
+GLESLDFLAGS := -shared -luser32 -ldxguid -ld3d9
+EGLLDFLAGS := -shared -luser32
 
-ANGLEFILES := angle/src/common/CompiledShaderState.cpp\
-	angle/src/common/Float16ToFloat32.cpp\
+ANGLECOMMON := angle/src/common/Float16ToFloat32.cpp\
     angle/src/common/MemoryBuffer.cpp\
     angle/src/common/PackedEGLEnums_autogen.cpp\
     angle/src/common/PackedEnums.cpp\
@@ -27,13 +30,11 @@ ANGLEFILES := angle/src/common/CompiledShaderState.cpp\
     angle/src/common/WorkerThread.cpp\
     angle/src/common/aligned_memory.cpp\
     angle/src/common/android_util.cpp\
-    angle/src/common/angle_version_info.cpp\
     angle/src/common/angleutils.cpp\
-    angle/src/common/debug.cpp\
+    angle/src/common/base/anglebase/sha1.cc\
+	angle/src/common/debug.cpp\
     angle/src/common/entry_points_enum_autogen.cpp\
     angle/src/common/event_tracer.cpp\
-    angle/src/common/gl_enum_utils.cpp\
-    angle/src/common/gl_enum_utils_autogen.cpp\
     angle/src/common/mathutil.cpp\
     angle/src/common/matrix_utils.cpp\
     angle/src/common/platform_helpers.cpp\
@@ -42,7 +43,14 @@ ANGLEFILES := angle/src/common/CompiledShaderState.cpp\
     angle/src/common/tls.cpp\
     angle/src/common/uniform_type_info_autogen.cpp\
     angle/src/common/utilities.cpp\
-    angle/src/common/base/anglebase/sha1.cc\
+	angle/src/common/system_utils_win32.cpp\
+	angle/src/common/system_utils_win.cpp
+    
+
+ANGLEFILES := angle/src/common/CompiledShaderState.cpp\
+	angle/src/common/angle_version_info.cpp\
+    angle/src/common/gl_enum_utils.cpp\
+    angle/src/common/gl_enum_utils_autogen.cpp\
     angle/src/compiler/preprocessor/DiagnosticsBase.cpp\
     angle/src/compiler/preprocessor/DirectiveHandlerBase.cpp\
     angle/src/compiler/preprocessor/DirectiveParser.cpp\
@@ -263,9 +271,35 @@ ANGLEFILES := angle/src/common/CompiledShaderState.cpp\
     angle/src/image_util/loadimage_paletted.cpp\
     angle/src/image_util/loadimage.cpp\
     angle/src/image_util/storeimage_paletted.cpp\
-    angle/src/common/third_party/xxhash/xxhash.c\
+	third_party/astc-encoder/Source/astcenc_entry.cpp\
+	third_party/astc-encoder/Source/astcenc_block_sizes.cpp\
+	third_party/astc-encoder/Source/astcenc_weight_align.cpp\
+	third_party/astc-encoder/Source/astcenc_symbolic_physical.cpp\
+	third_party/astc-encoder/Source/astcenc_decompress_symbolic.cpp\
+	third_party/astc-encoder/Source/astcenc_image.cpp\
+	third_party/astc-encoder/Source/astcenc_percentile_tables.cpp\
+	third_party/astc-encoder/Source/astcenc_compress_symbolic.cpp\
+	third_party/astc-encoder/Source/astcenc_compute_variance.cpp\
+	third_party/astc-encoder/Source/astcenc_color_unquantize.cpp\
+	third_party/astc-encoder/Source/astcenc_mathlib_softfloat.cpp\
+	third_party/astc-encoder/Source/astcenc_integer_sequence.cpp\
+	third_party/astc-encoder/Source/astcenc_mathlib.cpp\
+	third_party/astc-encoder/Source/Fuzzers/fuzz_astc_physical_to_symbolic.cpp\
+	third_party/astc-encoder/Source/astcenc_partition_tables.cpp\
+	third_party/astc-encoder/Source/astcenc_weight_quant_xfer_tables.cpp\
+	third_party/astc-encoder/Source/astcenc_quantization.cpp\
+	third_party/astc-encoder/Source/astcenc_find_best_partitioning.cpp\
+	third_party/astc-encoder/Source/astcenc_ideal_endpoints_and_weights.cpp\
+	third_party/astc-encoder/Source/astcenc_color_quantize.cpp\
+	third_party/astc-encoder/Source/astcenc_pick_best_endpoint_format.cpp\
+	third_party/astc-encoder/Source/astcenc_averages_and_directions.cpp
+
+ANGLECFILES := angle/src/common/third_party/xxhash/xxhash.c\
+	third_party/zlib/google/compression_utils_portable.cc\
     third_party/zlib/adler32.c\
     third_party/zlib/compress.c\
+	third_party/zlib/cpu_features.c\
+	third_party/zlib/crc_folding.c\
     third_party/zlib/crc32.c\
     third_party/zlib/deflate.c\
     third_party/zlib/gzclose.c\
@@ -391,26 +425,6 @@ GLESFILES := angle/src/libGLESv2/egl_ext_stubs.cpp\
     angle/src/libGLESv2/global_state.cpp\
     angle/src/libGLESv2/libGLESv2_autogen.cpp
 
-DEFINES := -DANGLE_CAPTURE_ENABLED=0 -DANGLE_ENABLE_ESSL=1 -DANGLE_ENABLE_GLSL=1 -DANGLE_EXPORT="" -DANGLE_IS_64_BIT_CPU=1
-
-ifeq ($(PLATFORM), win32)
-	DEFINES += -DANGLE_IS_WIN=1 -DANGLE_WINDOWS_NO_FUTEX=1 -DANGLE_PLATFORM_EXPORT=""\
-	-DANGLE_PRELOADED_D3DCOMPILER_MODULE_NAMES="\"d3dcompiler_47.dll\", \"d3dcompiler_46.dll\", \"d3dcompiler_43.dll\""\
-	-DANGLE_ENABLED_D3D11=1 -DANGLE_ENABLE_D3D11_COMPOSITOR_NATIVE_WINDOW=1 -DANGLE_ENABLE_HLSL=1 -DNOMINMAX=1\
-	-DX86_WINDOWS=1
-endif
-
-DEFINES += -DANGLE_STANDALONE_BUILD=1 -DANGLE_STATIC=1 -DANGLE_UTIL_EXPORT="" -DEGLAPI="" -DGL_API="" -DGL_APICALL=""\
-	-DGL_SILENCE_DEPRECATION=1 -DUSE_AURA=1 -D_HAS_EXCEPTIONS="0" -DNDEBUG=1 -DNVALGRIND=1 -DDYNAMIC_ANNOTATIONS_ENABLED=0\
-	-DANGLE_VMA_VERSION=3000000 -DANGLE_ENABLE_SHARE_CONTEXT_LOCK=1 -DANGLE_ENABLE_CONTEXT_MUTEX=1 -DANGLE_OUTSIDE_WEBKIT=1
-
-INCLUDES += -Iangle/src -Iangle/include -Iangle/include/KHR -Iangle/src/common/third_party/base -Iangle/src/common/base\
-	-Iangle/src/common/third_party/xxhash -Iangle/src/third_party/khronos -Ithird_party/astc-encoder/Source -Ithird_party/zlib\
-	-Ithird_party/zlib/google
-
-EGLDEFS := $(DEFINES) -DEGL_EGLEXT_PROTOTYPES=1 -DEGL_EGL_PROTOTYPES=1 -DGL_GLES_PROTOTYPES=1 -DGL_GLEXT_PROTOTYPES=1
-GLES2DEFS := $(DEFINES) -DLIBGLESV2_IMPLEMENTATION=1 -DEGL_EGL_PROTOTYPES=0 -DGL_GLES_PROTOTYPES=0
-
 SUFFIX :=
 ifeq ($(PLATFORM), win32)
 	SUFFIX := .dll
@@ -418,29 +432,116 @@ else
 	SUFFIX := .so
 endif
 
-.PHONY: all 
+INCLUDES += -Iangle/src -Iangle/include -Iangle/include/KHR -Iangle/src/common/third_party/base -Iangle/src/common/base\
+	-Iangle/src/common/third_party/xxhash -Iangle/src/third_party/khronos -Ithird_party/astc-encoder/Source -Ithird_party/zlib\
+	-Ithird_party/zlib/google
 
-all: scaffold bin/libANGLE$(SUFFIX) bin/libEGL$(SUFFIX) bin/libGLESv2$(SUFFIX)
+ANGLEOBJECTS := $(patsubst angle/src/%.cpp,bin/angle/%.o,$(ANGLEFILES))\
+    $(patsubst angle/src/%.c,bin/angle/%.o,$(patsubst third_party/zlib/%.c,bin/zlib/%.o,$(ANGLECFILES)))
+ANGLEOBJECTS := $(patsubst third_party/zlib/%.cc,bin/zlib/%.o,$(patsubst angle/src/%.cc,bin/angle/%.o,$(ANGLEOBJECTS)))
+ANGLEOBJECTS := $(patsubst third_party/astc-encoder/Source/%.cpp,bin/astc-encoder/%.o,$(ANGLEOBJECTS))
 
+ANGLECOMMONOBJECTS := $(patsubst angle/src/%.cpp,bin/angle/%.o,$(ANGLECOMMON))
+ANGLECOMMONOBJECTS := $(patsubst angle/src/%.cc,bin/angle/%.o,$(ANGLECOMMONOBJECTS))
+EGLOBJECTS := $(patsubst angle/src/libEGL/%.cpp,bin/egl/%.o,$(EGLFILES))
+GLESOBJECTS := $(patsubst angle/src/libGLESv2/%.cpp, bin/glesv2/%.o,$(GLESFILES)) $(ANGLEOBJECTS) $(ANGLECOMMONOBJECTS)
+
+COMMON_DEFS := -DANGLE_EGL_LIBRARY_NAME=\"libEGL\" -DANGLE_GLESV2_LIBRARY_NAME=\"libGLESv2\"\
+	-DANGLE_IS_WIN=1 -DANGLE_IS_64_BIT_CPU=1 -DNOMINMAX=1 -DANGLE_ENABLE_CONTEXT_MUTEX=1 -DANGLE_WINDOWS_NO_FUTEX=1\
+	-D_CRT_SECURE_NO_WARNINGS
+
+EGLDEFINES := $(COMMON_DEFS) -DANGLE_DISPATCH_LIBRARY="\"libGLESv2$(SUFFIX)\"" -DLIBEGL_IMPLEMENTATION -DEGLAPI=""\
+	-DANGLE_USE_EGL_LOADER -DGL_GLES_PROTOTYPES=1 -DEGL_EGL_PROTOTYPES=1 -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
+
+GLESDEFINES := $(COMMON_DEFS) -DANGLE_PRELOADED_D3DCOMPILER_MODULE_NAMES="{\"d3dcompiler_47.dll\", \"d3dcompiler_46.dll\", \"d3dcompiler_43.dll\"}"\
+	-DANGLE_ENABLE_D3D11=1 -DANGLE_ENABLE_D3D11_COMPOSITOR_NATIVE_WINDOW=1 -DANGLE_ENABLE_HLSL=1\
+	-DGL_SILENCE_DEPRECATION=1 -DUSE_AURA=1 -D_HAS_EXCEPTIONS="0" -DNDEBUG=1 -DNVALGRIND=1 -DDYNAMIC_ANNOTATIONS_ENABLED=0\
+	-DANGLE_VMA_VERSION=3000000 -DANGLE_ENABLE_SHARE_CONTEXT_LOCK=1 -DANGLE_OUTSIDE_WEBKIT=1\
+	-DANGLE_PLATFORM_EXPORT="" -DX86_WINDOWS=1 -DANGLE_CAPTURE_ENABLED=0 -DANGLE_ENABLE_ESSL=1 -DANGLE_ENABLE_GLSL=1 -DANGLE_EXPORT=""\
+	-DLIBGLESV2_IMPLEMENTATION=1 -DEGL_EGL_PROTOTYPES=0 -DGL_API="" -DGL_APICALL=""
+
+ANGLEDIRS := bin\angle\common \
+	bin\angle\common\base\anglebase \
+	bin\angle\common\third_party\xxhash \
+	bin\angle\compiler \
+	bin\angle\compiler\preprocessor \
+	bin\angle\compiler\translator \
+	bin\angle\compiler\translator\glsl \
+	bin\angle\compiler\translator\hlsl \
+	bin\angle\compiler\translator\tree_ops \
+	bin\angle\compiler\translator\tree_ops\glsl \
+	bin\angle\compiler\translator\tree_ops\hlsl \
+	bin\angle\compiler\translator\tree_ops\msl \
+	bin\angle\compiler\translator\tree_util \
+	bin\angle\gpu_info_util \
+	bin\angle\libANGLE \
+	bin\angle\libANGLE\capture \
+	bin\angle\libANGLE\renderer \
+	bin\angle\libANGLE\renderer\d3d \
+	bin\angle\libANGLE\renderer\d3d\d3d11 \
+	bin\angle\libANGLE\renderer\d3d\d3d11\converged \
+	bin\angle\libANGLE\renderer\d3d\d3d11\win32 \
+	bin\angle\image_util \
+	bin\astc-encoder \
+	bin\astc-encoder\Fuzzers \
+	bin\zlib\google
+
+.PHONY: all scaffold
+
+all: scaffold bin/libEGL$(SUFFIX) bin/libGLESv2$(SUFFIX)
 
 scaffold:
 ifeq ($(PLATFORM), win32)
 	@mkdir bin 2>NUL || cd .
+	@mkdir bin\angle bin\egl bin\glesv2 bin\zlib 2>NUL || cd .
+	@mkdir $(ANGLEDIRS) 2>NUL || cd .
 	@mkdir borealis-angle 2>NUL || cd .
-endif
-ifeq ($(PLATFORM), linux)
-	@mkdir -p bin
-	@mkdir -p borealis-angle
-	@python3 angle/src/program_serialize_data_version.py borealis-angle/ANGLEShaderProgramVersion.h file_list
-	@python3 angle/src/commit_id.py gen borealis-angle/angle_commit.h
+	@python angle/src/program_serialize_data_version.py borealis-angle/ANGLEShaderProgramVersion.h file_list
+	@python angle/src/commit_id.py gen borealis-angle/angle_commit.h
 endif
 
+bin/libEGL$(SUFFIX): $(EGLOBJECTS) $(ANGLECOMMONOBJECTS)
+	@echo Linking $@...
+	@$(CXX) $(EGLOBJECTS) $(ANGLECOMMONOBJECTS) -o $@ $(EGLLDFLAGS)
+	@echo $@ linked successfully.
 
-bin/libANGLE$(SUFFIX):
-	-@$(CXX) $(ANGLEFILES) -o $@ $(DEFINES) $(INCLUDES)
+bin/libGLESv2$(SUFFIX): $(GLESOBJECTS)
+	@echo Linking $@...
+	@$(CXX) $(GLESOBJECTS) -o $@ $(GLESLDFLAGS)
+	@echo $@ linked successfully.
 
-bin/libEGL$(SUFFIX):
-	-@$(CXX) $(EGLFILES) -o $@ $(DEFINES) $(INCLUDES)
+bin/angle/%.o: angle/src/%.cpp
+	@echo 	$<...
+ifeq ("$(patsubst angle/src/common/%.cpp,,$<)","")
+	@$(CXX) $(CXXFLAGS) $< -c -o $@ $(GLESDEFINES) $(INCLUDES)
+else
+	@$(CXX) $(CXXFLAGS) $< -c -o $@ $(EGLDEFINES) $(INCLUDES)
+endif
 
-bin/libGLESv2$(SUFFIX):
-	-@$(CXX) $(GLESFILES) -o $@ $(DEFINES) $(INCLUDES)
+bin/angle/%.o: angle/src/%.cc
+	@echo 	$<...
+	@$(CXX) $(CXXFLAGS) $< -c -o $@ $(EGLDEFINES) $(INCLUDES)
+
+bin/egl/%.o: angle/src/libEGL/%.cpp
+	@echo 	$<...
+	@$(CXX) $(CXXFLAGS) $< -c -o $@ $(EGLDEFINES) $(INCLUDES)
+
+bin/glesv2/%.o: angle/src/libGLESv2/%.cpp
+	@echo 	$<...
+	@$(CXX) $(CXXFLAGS) $< -c -o $@ $(GLESDEFINES) $(INCLUDES)
+
+bin/angle/%.o: angle/src/%.c
+	@echo 	$<...
+	@$(CC) $(CCFLAGS) $< -c -o $@ $(GLESDEFINES) $(INCLUDES)
+
+bin/astc-encoder/%.o: third_party/astc-encoder/Source/%.cpp
+	@echo 	$<...
+	@$(CXX) $(CXXFLAGS) $< -c -o $@ $(GLESDEFINES) $(INCLUDES)
+
+bin/zlib/%.o: third_party/zlib/%.c
+	@echo 	$<...
+	@$(CC) $(CCFLAGS) $< -c -o $@ $(GLESDEFINES) $(INCLUDES)
+
+bin/zlib/%.o: third_party/zlib/%.cc
+	@echo 	$<...
+	@$(CXX) $(CXXFLAGS) $< -c -o $@ $(GLESDEFINES) $(INCLUDES)
