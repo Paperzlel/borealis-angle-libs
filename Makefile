@@ -17,7 +17,7 @@ CC := clang
 CXXFLAGS := -O3 -std=c++20 -msse4.2 -Wwrite-strings -fdeclspec -Wno-nontrivial-memcall
 CCFLAGS := -O3 -std=c17 -msse4.2 -Wwrite-strings -fdeclspec -Wno-nontrivial-memcall
 INCLUDES := -Iborealis-angle
-GLESLDFLAGS := -shared -luser32 -ldxguid -ld3d9
+GLESLDFLAGS := -shared -luser32 -ldxguid -ldxgi -ld3d11
 EGLLDFLAGS := -shared -luser32
 
 ANGLECOMMON := angle/src/common/Float16ToFloat32.cpp\
@@ -411,6 +411,8 @@ endif
 EGLFILES := angle/src/libEGL/egl_loader_autogen.cpp\
     angle/src/libEGL/libEGL_autogen.cpp
 
+EGLADDITIONAL := -Wl,"/DEF:angle/src/libEGL/libEGL_autogen.def"
+
 GLESFILES := angle/src/libGLESv2/egl_ext_stubs.cpp\
     angle/src/libGLESv2/egl_stubs.cpp\
     angle/src/libGLESv2/egl_stubs_getprocaddress_autogen.cpp\
@@ -454,11 +456,10 @@ EGLDEFINES := $(COMMON_DEFS) -DANGLE_DISPATCH_LIBRARY="\"libGLESv2$(SUFFIX)\"" -
 	-DANGLE_USE_EGL_LOADER -DGL_GLES_PROTOTYPES=1 -DEGL_EGL_PROTOTYPES=1 -DGL_GLEXT_PROTOTYPES -DEGL_EGLEXT_PROTOTYPES
 
 GLESDEFINES := $(COMMON_DEFS) -DANGLE_PRELOADED_D3DCOMPILER_MODULE_NAMES="{\"d3dcompiler_47.dll\", \"d3dcompiler_46.dll\", \"d3dcompiler_43.dll\"}"\
-	-DANGLE_ENABLE_D3D11=1 -DANGLE_ENABLE_D3D11_COMPOSITOR_NATIVE_WINDOW=1 -DANGLE_ENABLE_HLSL=1\
+	-DANGLE_ENABLE_D3D11=1 -DANGLE_ENABLE_D3D11_COMPOSITOR_NATIVE_WINDOW=1 -DANGLE_ENABLE_HLSL=1 -DANGLE_ENABLE_ESSL=1 -DANGLE_ENABLE_GLSL=1\
 	-DGL_SILENCE_DEPRECATION=1 -DUSE_AURA=1 -D_HAS_EXCEPTIONS="0" -DNDEBUG=1 -DNVALGRIND=1 -DDYNAMIC_ANNOTATIONS_ENABLED=0\
-	-DANGLE_VMA_VERSION=3000000 -DANGLE_ENABLE_SHARE_CONTEXT_LOCK=1 -DANGLE_OUTSIDE_WEBKIT=1\
-	-DANGLE_PLATFORM_EXPORT="" -DX86_WINDOWS=1 -DANGLE_CAPTURE_ENABLED=0 -DANGLE_ENABLE_ESSL=1 -DANGLE_ENABLE_GLSL=1 -DANGLE_EXPORT=""\
-	-DLIBGLESV2_IMPLEMENTATION=1 -DEGL_EGL_PROTOTYPES=0 -DGL_API="" -DGL_APICALL=""
+	-DANGLE_VMA_VERSION=3000000 -DANGLE_ENABLE_SHARE_CONTEXT_LOCK=1 -DANGLE_OUTSIDE_WEBKIT=1 -DX86_WINDOWS=1\
+    -DANGLE_CAPTURE_ENABLED=0 -DLIBGLESV2_IMPLEMENTATION=1 -DEGL_EGL_PROTOTYPES=0 -DANGLE_PLATFORM_EXPORT=""\
 
 ANGLEDIRS := bin\angle\common \
 	bin\angle\common\base\anglebase \
@@ -486,7 +487,7 @@ ANGLEDIRS := bin\angle\common \
 	bin\astc-encoder\Fuzzers \
 	bin\zlib\google
 
-.PHONY: all scaffold
+.PHONY: all scaffold clean 
 
 all: scaffold bin/libEGL$(SUFFIX) bin/libGLESv2$(SUFFIX)
 
@@ -500,9 +501,15 @@ ifeq ($(PLATFORM), win32)
 	@python angle/src/commit_id.py gen borealis-angle/angle_commit.h
 endif
 
+clean:
+ifeq ($(PLATFORM), win32)
+	@rmdir bin /S /Q
+	@rmdir borealis-angle /S /Q
+endif
+
 bin/libEGL$(SUFFIX): $(EGLOBJECTS) $(ANGLECOMMONOBJECTS)
 	@echo Linking $@...
-	@$(CXX) $(EGLOBJECTS) $(ANGLECOMMONOBJECTS) -o $@ $(EGLLDFLAGS)
+	@$(CXX) $(EGLOBJECTS) $(ANGLECOMMONOBJECTS) -o $@ $(EGLLDFLAGS) $(EGLADDITIONAL)
 	@echo $@ linked successfully.
 
 bin/libGLESv2$(SUFFIX): $(GLESOBJECTS)
